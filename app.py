@@ -1,37 +1,53 @@
-import streamlit as st
-import numpy as np
 import pandas as pd
+import scipy.stats
+import streamlit as st
 import time
 
-# Título de la aplicación
-st.header('Lanzamiento de una moneda')
+# estas son variables de estado que se conservan cuando Streamlin vuelve a ejecutar este script
+if 'experiment_no' not in st.session_state:
+    st.session_state['experiment_no'] = 0
 
-# Control deslizante para definir el número de intentos
+if 'df_experiment_results' not in st.session_state:
+    st.session_state['df_experiment_results'] = pd.DataFrame(columns=['no', 'iteraciones', 'media'])
+
+st.header('Lanzar una moneda')
+
+chart = st.line_chart([0.5])
+
+def toss_coin(n):
+
+    trial_outcomes = scipy.stats.bernoulli.rvs(p=0.5, size=n)
+
+    mean = None
+    outcome_no = 0
+    outcome_1_count = 0
+
+    for r in trial_outcomes:
+        outcome_no +=1
+        if r == 1:
+            outcome_1_count += 1
+        mean = outcome_1_count / outcome_no
+        chart.add_rows([mean])
+        time.sleep(0.05)
+
+    return mean
+
 number_of_trials = st.slider('¿Número de intentos?', 1, 1000, 10)
-
-# Botón para ejecutar el experimento
 start_button = st.button('Ejecutar')
 
 if start_button:
-    st.write(f'Experimento con {number_of_trials} intentos en curso...')
+    st.write(f'Experimento con {number_of_trials} intentos en curso.')
+    st.session_state['experiment_no'] += 1
+    mean = toss_coin(number_of_trials)
+    st.session_state['df_experiment_results'] = pd.concat([
+        st.session_state['df_experiment_results'],
+        pd.DataFrame(data=[[st.session_state['experiment_no'],
+                            number_of_trials,
+                            mean]],
+                     columns=['no', 'iterations', 'mean'])
+        ],
+        axis=0)
+    st.session_state['df_experiment_results'] = 
+        st.session_state['df_experiment_results'].reset_index(drop=True)
 
-    # Simulación del lanzamiento de monedas (0 = cara, 1 = cruz)
-    resultados = np.random.randint(0, 2, size=number_of_trials)
-    media_resultados = np.mean(resultados)
-
-    # Mostrar progreso
-    progress_bar = st.progress(0)
-    for i in range(1, 101):
-        time.sleep(0.02)  # Simula el proceso
-        progress_bar.progress(i)
-
-    # Mostrar resultados
-    st.subheader('Resultados:')
-    st.write(f'La media de los lanzamientos es: {media_resultados:.2f}')
-
-    # Gráfico de progreso
-    st.line_chart(pd.DataFrame({'Lanzamientos': np.cumsum(resultados) / np.arange(1, number_of_trials + 1)}))
-
-    # Mostrar los datos en tabla
-    df = pd.DataFrame({'Intento': np.arange(1, number_of_trials + 1), 'Resultado': resultados})
-    st.dataframe(df)
+st.write(st.session_state['df_experiment_results'])
